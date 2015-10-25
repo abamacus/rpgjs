@@ -1,0 +1,890 @@
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="description" content="A simple tool to help track combat rounds in RPG's" />
+<meta name="author" content="http://google.com/+JoelElliott27" />
+<title>Initiative Tracker</title>
+<style>
+body{
+ background-color: rgb(223, 223, 223);
+ font-family: 'Verdana', 'Arial', 'Segoe UI Symbol', 'Segoe UI Emoji Regular', 'Sans-Serif';
+}
+table tr td {
+ display: inline-block;
+ text-align: center;
+}
+td, th, span{font-size: 20pt;}
+th{white-space: nowrap;}
+#uiMenu {position: absolute;}
+#uiMenu > div {
+ display: none;
+ position: relative;
+}
+#uiMenu:hover > div {display: block;}
+#uiMenu > div div {
+ width: 800px;
+ display: block;
+ text-align: left;
+ white-space: nowrap;
+ background-color: rgb(223, 223, 223);
+ border: solid 2px #1f1f1f;
+ font-size: 16pt;
+}
+#uiMenu {
+ width: 1.5em;
+}
+#uiMenu:hover {
+ width: 50%;
+}
+/* for table cells, default colors */
+tr           td, tr        th { background-color: rgba(224,224,224,1); border: solid 2px #1f1f1f; }
+/* colors for each type of character */
+tr.player    td, td.player    { background-color: rgba(  0,127,  0,0.15); border: solid 2px #007f00; }
+tr.npc       td, td.npc       { background-color: rgba(  0,  0,127,0.15); border: solid 2px #00007f; }
+tr.monster   td, td.monster   { background-color: rgba(127,  0,  0,0.15); border: solid 2px #7f0000; }
+tr.character td, td.character { background-color: rgba( 63, 63, 63,0.15); border: solid 2px #3f3f3f; }
+/* emphasize the active character */
+tr.activeTurn td {
+ text-shadow: 0px 0px 15px rgba(255,255,255,1)
+             ,0px 0px 15px rgba(255,255,255,1);
+}
+tr.player.activeTurn    td.name { background: linear-gradient(to right, rgba(255,255,255,1.0), rgba(  0,128,  0,1.0)); }
+tr.npc.activeTurn       td.name { background: linear-gradient(to right, rgba(255,255,255,1.0), rgba(  0,  0,128,1.0)); }
+tr.monster.activeTurn   td.name { background: linear-gradient(to right, rgba(255,255,255,1.0), rgba(128,  0,  0,1.0)); }
+tr.character.activeTurn td.name { background: linear-gradient(to right, rgba(255,255,255,1.0), rgba( 64, 64, 64,1.0)); }
+/*
+tr.activeTurn > td.name > span:first-child::before {
+ content: '\00A0\27A4\00A0';
+ text-shadow: none;
+}
+tr.activeTurn > td.name > span:first-child::after {
+ content: '\00A0\2B05\00A0';
+ text-shadow: none;
+}
+*/
+
+input.initiativeValue { width: 2em; }
+input.nameValue       {  }
+input.hitPointsValue  { width: 3em; }
+/* highlight hitPointsZero */
+tr.hitPointsZero td span, td.hitPointsZero span { color: rgba(255,127,0,1); }
+/* highlight hitPointsNegative */
+tr.hitPointsNegative td span, td.hitPointsNegative span {
+ color: rgba(255,0,0,1);
+}
+tr.hitPointsNegative td span, td.hitPointsNegative span {
+ color: rgba(255,0,0,1);
+}
+
+#uiAddPC:hover        {background: radial-gradient(rgba(  0,255,  0,1.0),rgba(  0,128,  0,0.8));}
+#uiAddNPC:hover       {background: radial-gradient(rgba(  0,  0,255,1.0),rgba(  0,  0,128,0.8));}
+#uiAddMonster:hover   {background: radial-gradient(rgba(255,  0,  0,1.0),rgba(128,  0,  0,0.8));}
+#uiToggleStorage:hover{background: radial-gradient(rgba(128,128,128,1.0),rgba( 64, 64, 64,0.8));}
+
+#uiAddCharacters tr td:hover,
+#uiPrevCharacter:hover, #uiNextCharacter:hover {
+  cursor: hand;
+}
+
+#uiRoundActions td:hover {background: radial-gradient(rgba(255,255,255,1.0),rgba(128,128,128,1));}
+#uiNextCharacter {
+ width: 80%;
+}
+
+#uiRoundActions, #uiActiveCharacters, #uiAddCharacters, #uiStoredCharacters {
+ width: 100%;
+}
+#uiAddCharacters td {
+ width: 25%;
+}
+#uiActiveCharacters td:first-child {
+ width: 4em;
+}
+#uiActiveCharacters td:nth-child(2) {
+ width: 100em;
+}
+#uiActiveCharacters td:last-child {
+ width: 4em;
+}
+#uiActiveCharacters td.name {
+ text-align: left;
+}
+#uiActiveCharacters td span.remove {
+ float: right;
+ font-family: 'Arial Narrow';
+ font-size: 0.5em;
+ padding: 7px 7px;
+}
+
+#uiActiveCharacters tr td span.remove:hover {
+  background: radial-gradient(rgba(255,0,0,1.0)
+                             ,rgba(255,0,0,0.8)
+                             ,rgba(255,0,0,0.5)
+                             ,rgba(255,0,0,0),rgba(0,0,0,0));
+  cursor: hand;
+}
+
+#uiStoredCharacters > tr > td:first-child {
+ text-align: left;
+}
+
+#uiStoredCharacters > tr > td.delete:hover {
+  background: radial-gradient(rgba(255,0,0,1.0)
+                             ,rgba(128,0,0,0.8));
+  cursor: hand;
+}
+#uiStoredCharacters > tr > td.add:hover {
+  background: radial-gradient(rgba(0,255,0,1.0)
+                             ,rgba(0,128,0,0.8));
+  cursor: hand;
+}
+
+.decrease {float: left;  padding: 0px 7px;}
+.increase {float: right; padding: 0px 7px;}
+.decrease:hover {cursor: hand; background: radial-gradient(rgba(255,0,0,1.0),rgba(255,0,0,0.8),rgba(255,0,0,0.5),rgba(255,0,0,0),rgba(0,0,0,0));}
+.increase:hover {cursor: hand; background: radial-gradient(rgba(0,255,0,1.0),rgba(0,255,0,0.8),rgba(0,255,0,0.5),rgba(0,255,0,0),rgba(0,0,0,0));}
+
+</style>
+</head>
+<body>
+
+<span id="noscript">This page requires javascript to be enabled.</span>
+<script>document.getElementById('noscript').remove();</script>
+
+<table id="uiRoundActions">
+<tr>
+<td id="uiMenu"> &#9776;
+ <div>
+  <div>
+   <a href="http://copyheart.org">&#x2661; Please copy and share.</a>
+<!--
+todo: add a meta tag for creator
+   Created by <a rel="dct:publisher" href="http://google.com/+JoelElliott27">Joel Elliott</a>
+-->
+   <a href="legal.html" target="_legal">Legal</a>
+   <a rel="license" href="http://creativecommons.org/publicdomain/zero/1.0/">
+    <img src="cc0.png" style="border-style: none;" alt="Creative Commons 0 - Public Domain" />
+   </a>
+  </div>
+ </div>
+</td>
+<td id="uiNextCharacter"> Next &#x23E9; </td>
+<td id="uiInitiativeRound"></td>
+<td id="uiPrevCharacter"> Prev &#x23EA; </td>
+</tr>
+</table>
+<table id="uiActiveCharacters">
+ <tr>
+  <th>Initiative</th>
+  <th>Name / Notes</th>
+  <th>Hit Points</th>
+ </tr>
+</table>
+<table id="uiAddCharacters">
+<tr>
+<td id="uiAddPC"      class="player"  > add Player  </td>
+<td id="uiAddNPC"     class="npc"     > add NPC     </td>
+<td id="uiAddMonster" class="monster" > add Monster </td>
+<td id="uiToggleStorage" class="storage"><span id="uiShowHideStorage"></span> Storage (<span id="uiStorageCount"></span>)</td>
+</tr>
+</table>
+<br/>
+<table id="uiStoredCharacters">
+ <tr>
+  <th colspan="3">
+    Stored Characters
+  </th>
+ </tr>
+</table>
+</body>
+</html>
+<script>
+var $ = function(elemId) {return document.getElementById(elemId);}
+var rnd = function(minValue, maxValue) {
+  if (typeof minValue == 'undefined') {
+    return Math.random()
+  } else {
+    if (typeof maxValue == 'undefined') {
+      maxValue = minValue
+      minValue = 0
+    } else if (minValue > maxValue) {
+      var temp = minValue
+      minValue = maxValue
+      maxValue = temp
+    }
+    return Math.floor(Math.random() * (maxValue - minValue + 1)) + minValue
+  }
+}
+/*
+LOCAL STORAGE SYNTAX REFERENCE
+  localStorage.getItem('keyname');
+    alternatively: localStorage['keyname'];
+  localStorage.setItem('keyname','value');
+    alternatively: localStorage['keyname'] = 'value';
+  localStorage.removeItem('keyname');
+  localStorage.clear();
+  localStorage.length;
+  localStorage.key(index);
+space for localStorage is 5mb by default.
+*/
+var StorageSupported = function () {
+ try {
+  if (!('localStorage' in window)) return false;
+  if (window['localStorage'] == null) return false;
+  return true;
+ }catch(e){
+  return false;
+ }
+}
+var DumpLocalStorageToConsole = function () {
+ var length = localStorage.length;
+ console.log('localStorage has ' + length + ' elements:');
+ for (var i = 0; i < length; i++ ) {
+  var keyname = localStorage.key(i);
+  var value = localStorage[i];
+  console.log(keyname + ' = ' + localStorage[keyname]);
+ }
+}
+var LoadFromStorage = function () {
+  if (!StorageSupported()) {window.alert('Warning: characters will not be saved automatically. \n(HTML5 storage not available)\n:-(');return;}
+  var activeCharNames = localStorage.getItem('activeCharNames')
+  if (activeCharNames != null) {
+    activeCharNameArray = activeCharNames.split(',')
+    for (var i = 0; i < activeCharNameArray.length; i++) {
+      var charName = activeCharNameArray[i]
+      var charValues = localStorage.getItem(charName)
+      if (charValues != null) {
+        var restoredChar = Char.FromValues(charValues)
+        activeChars.push(restoredChar)
+      }
+    }
+  }
+  // ever 5 seconds, back up the current character values to local storage
+  backupTimer = setInterval(BackupCharactersToStorage, 5000);
+}
+var BackupCharactersToStorage = function() {
+  var activeCharNames = []
+  for (var i = 0; i < activeChars.length; i++) {
+    var thisChar = activeChars[i]
+    localStorage.setItem(thisChar.name,thisChar.toString());
+    activeCharNames.push(thisChar.name)
+  }
+  localStorage.setItem('activeCharNames',activeCharNames.toString())
+}
+
+var ArrowsCharacters = {
+ Up: String.fromCharCode(0x25B2)
+,Down: String.fromCharCode(0x25BC)
+,Left: String.fromCharCode(0x25C0)
+,Right: String.fromCharCode(0x25B6)
+,LeftDouble: String.fromCharCode(0x23EA)
+,RightDouble: String.fromCharCode(0x23E9)
+,ArrowRight: String.fromCharCode(0x2190)
+,ArrowLeft: String.fromCharCode(0x2192)
+}
+
+var ToggleInput = function() {
+  var thisChar = this.char
+  if (thisChar != null)
+  {
+    if (this.inputType == 'initiative' && thisChar.initiative === null) {
+      thisChar.initiative = rnd(1,20)
+    } else {
+      var propertyName = this.inputType + 'ManualInput'
+      if (typeof thisChar[propertyName] == 'undefined') {
+        TurnOffManualInput()
+        thisChar[propertyName] = true
+      } else {
+        thisChar[propertyName] = undefined
+      }
+    }
+  }
+  RedrawChars()
+}
+var TurnOffManualInput = function() {
+  for (var i = 0; i < activeChars.length; i++) {
+    var thisChar = activeChars[i]
+    if (typeof thisChar.initiativeManualInput != 'undefined') {
+      var theseInputs = document.getElementsByTagName('INPUT')
+      for (var j = 0; j < theseInputs.length; j++) {
+        var thisInput = theseInputs[j]
+        if (thisInput.char == thisChar) {
+          if (thisInput.value != '') {
+            thisChar.initiative = parseFloat(thisInput.value)
+          }
+        }
+      }
+      thisChar.initiativeManualInput = undefined
+    }
+    if (typeof thisChar.nameManualInput != 'undefined') {
+      var theseInputs = document.getElementsByTagName('INPUT')
+      for (var j = 0; j < theseInputs.length; j++) {
+        var thisInput = theseInputs[j]
+        if (thisInput.char == thisChar) {
+          if (thisInput.value != '') {
+            thisChar.name = 'dummy value'
+            thisChar.name = FixName(thisInput.value, thisChar)
+          }
+        }
+      }
+      thisChar.nameManualInput = undefined
+    }
+    if (typeof thisChar.hitPointsManualInput != 'undefined') {
+      var theseInputs = document.getElementsByTagName('INPUT')
+      for (var j = 0; j < theseInputs.length; j++) {
+        var thisInput = theseInputs[j]
+        if (thisInput.char == thisChar) {
+          if (thisInput.value != '') {
+            thisChar.hitPoints = parseFloat(thisInput.value)
+          }
+        }
+      }
+      thisChar.hitPointsManualInput = undefined
+    }
+  }
+}
+var OnEnterTurnOffManualInput = function(keyboardEvent) {
+  if (typeof keyboardEvent != 'undefined' && keyboardEvent.keyIdentifier != 'Enter') {
+    /* this is invoked every time the user presses a key,
+       so that when they press <Enter> it can update the value and change the input back to just a label */
+    return
+  }
+  TurnOffManualInput()
+  RedrawChars()
+}
+
+var IncreaseInitiative = function() {
+  TurnOffManualInput()
+  var thisChar = this.char
+  if (thisChar.initiative === null) {thisChar.initiative = 11}
+  thisChar.initiative = thisChar.initiative + 1
+  RedrawChars()
+}
+var DecreaseInitiative = function() {
+  TurnOffManualInput()
+  var thisChar = this.char
+  if (thisChar.initiative === null) {thisChar.initiative = 11}
+  thisChar.initiative -= 1
+  RedrawChars()
+}
+
+var SortByInitiative = function() {
+  var uiActiveCharacters = $('uiActiveCharacters');
+  // skipping first row, it is the header row
+  for(var i = 1; i < uiActiveCharacters.children.length - 1; i++) {
+    var rowI = uiActiveCharacters.children[i]
+    for(var j = i + 1; j < uiActiveCharacters.children.length; j++) {
+      var rowJ = uiActiveCharacters.children[j]
+      if (rowI.char.initiative < rowJ.char.initiative) {
+        uiActiveCharacters.insertBefore(rowJ, rowI)
+      }
+    }
+  }
+}
+
+var IncreaseHitPoints = function() {
+  TurnOffManualInput()
+  var thisChar = this.char
+  thisChar.hitPoints = thisChar.hitPoints + 1
+  RedrawChars()
+}
+var DecreaseHitPoints = function() {
+  TurnOffManualInput()
+  var thisChar = this.char
+  thisChar.hitPoints -= 1
+  RedrawChars()
+}
+
+var DeleteCharacter = function() {
+  TurnOffManualInput()
+  localStorage.removeItem(this.char.name)
+  RedrawChars()
+}
+var ActivateCharacter = function() {
+  TurnOffManualInput()
+  this.char.AddClone()
+}
+var RemoveCharacter = function() {
+  TurnOffManualInput()
+  if (GetCharActiveTurn() == this.char) {
+    NextCharacter()
+  }
+  this.char.SetInactive()
+}
+
+var RedrawChars = function() {
+  BackupCharactersToStorage()
+  var uiInitiativeRound = $('uiInitiativeRound');
+  uiInitiativeRound.innerText = initiativeRound
+  var uiActiveCharacters = $('uiActiveCharacters');
+  for(var i = 0; i < activeChars.length; i++) {
+    var thisChar = activeChars[i]
+    var uiRowChar = null
+    var uiCellInitiative
+    var uiInitiativeValue
+    var uiCellName
+    var uiNameValue
+    var uiCellHitPoints
+    var uiHitPointsValue
+    for(var j = 0; j < uiActiveCharacters.children.length; j++) {
+      if (uiActiveCharacters.children[j].char == thisChar)
+        uiRowChar = uiActiveCharacters.children[j]
+    }
+    if (uiRowChar == null) {
+      uiRowChar = document.createElement('tr')
+      uiRowChar.char = thisChar
+      uiRowChar.classList.add(thisChar.type)
+
+      uiCellInitiative = document.createElement('td')
+      var uiInitiativeDecrease = document.createElement('span')
+      uiInitiativeDecrease.classList.add('decrease')
+      uiInitiativeDecrease.innerText = ArrowsCharacters.Down
+      uiInitiativeDecrease.char = thisChar
+      uiInitiativeDecrease.onclick = DecreaseInitiative
+      uiCellInitiative.appendChild(uiInitiativeDecrease)
+      uiInitiativeValue = document.createElement('span')
+      uiInitiativeValue.inputType = 'initiative'
+      uiInitiativeValue.char = thisChar
+      uiInitiativeValue.onclick = ToggleInput
+      uiCellInitiative.appendChild(uiInitiativeValue)
+      var uiInitiativeIncrease = document.createElement('span')
+      uiInitiativeIncrease.classList.add('increase')
+      uiInitiativeIncrease.innerText = ArrowsCharacters.Up
+      uiInitiativeIncrease.char = thisChar
+      uiInitiativeIncrease.onclick = IncreaseInitiative
+      uiCellInitiative.appendChild(uiInitiativeIncrease)
+      uiRowChar.appendChild(uiCellInitiative)
+
+      uiCellName = document.createElement('td')
+      uiCellName.classList.add('name')
+      uiNameValue = document.createElement('span')
+      uiNameValue.inputType = 'name'
+      uiNameValue.char = thisChar
+      uiNameValue.onclick = ToggleInput
+      uiCellName.appendChild(uiNameValue)
+      uiRemove = document.createElement('span')
+      uiRemove.classList.add('remove')
+      uiRemove.innerText = 'Remove'
+      uiRemove.char = thisChar
+      uiRemove.onclick = RemoveCharacter
+      uiCellName.appendChild(uiRemove)
+      uiRowChar.appendChild(uiCellName)
+
+      uiCellHitPoints = document.createElement('td')
+      var uiHitPointsDecrease = document.createElement('span')
+      uiHitPointsDecrease.classList.add('decrease')
+      uiHitPointsDecrease.innerText = ArrowsCharacters.Down
+      uiHitPointsDecrease.char = thisChar
+      uiHitPointsDecrease.onclick = DecreaseHitPoints
+      uiCellHitPoints.appendChild(uiHitPointsDecrease)
+      uiHitPointsValue = document.createElement('span')
+      uiHitPointsValue.inputType = 'hitPoints'
+      uiHitPointsValue.char = thisChar
+      uiHitPointsValue.onclick = ToggleInput
+      uiCellHitPoints.appendChild(uiHitPointsValue)
+      var uiHitPointsIncrease = document.createElement('span')
+      uiHitPointsIncrease.classList.add('increase')
+      uiHitPointsIncrease.innerText = ArrowsCharacters.Up
+      uiHitPointsIncrease.char = thisChar
+      uiHitPointsIncrease.onclick = IncreaseHitPoints
+      uiCellHitPoints.appendChild(uiHitPointsIncrease)
+      uiRowChar.appendChild(uiCellHitPoints)
+
+      uiActiveCharacters.appendChild(uiRowChar)
+    } else {
+      uiCellInitiative     = uiRowChar.children[0]
+      uiInitiativeValue    = uiCellInitiative.children[1]
+      uiCellName           = uiRowChar.children[1]
+      uiNameValue          = uiCellName.children[0]
+      uiCellHitPoints      = uiRowChar.children[2]
+      uiHitPointsValue     = uiCellHitPoints.children[1]
+    }
+
+    // if should be manual input but is not, or should not be but is, replace the tag
+    if (thisChar.initiativeManualInput == true && uiInitiativeValue.tagName != 'INPUT') {
+      var new_uiInitiativeValue = document.createElement('input')
+      new_uiInitiativeValue.type = 'number'
+      new_uiInitiativeValue.min = -10
+      new_uiInitiativeValue.max = 999
+      new_uiInitiativeValue.classList.add('initiativeValue')
+      new_uiInitiativeValue.inputType = 'initiative'
+      new_uiInitiativeValue.char = thisChar
+      new_uiInitiativeValue.onchange = OnEnterTurnOffManualInput
+      new_uiInitiativeValue.onkeypress = OnEnterTurnOffManualInput
+      uiInitiativeValue.onclick = undefined
+      uiInitiativeValue.parentElement.replaceChild(new_uiInitiativeValue, uiInitiativeValue)
+      uiInitiativeValue = new_uiInitiativeValue
+      uiInitiativeValue.focus()
+    } else if (typeof thisChar.initiativeManualInput == 'undefined' && uiInitiativeValue.tagName == 'INPUT') {
+      var new_uiInitiativeValue = document.createElement('span')
+      new_uiInitiativeValue.inputType = 'initiative'
+      new_uiInitiativeValue.char = thisChar
+      new_uiInitiativeValue.onclick = ToggleInput
+      uiInitiativeValue.onclick = undefined
+      uiInitiativeValue.onchange = undefined
+      uiInitiativeValue.onkeypress = undefined
+      uiInitiativeValue.parentElement.replaceChild(new_uiInitiativeValue, uiInitiativeValue)
+      uiInitiativeValue = new_uiInitiativeValue
+      uiInitiativeValue.focus()
+    }
+    if (thisChar.nameManualInput == true && uiNameValue.tagName != 'INPUT') {
+      var new_uiNameValue = document.createElement('input')
+      new_uiNameValue.classList.add('nameValue')
+      new_uiNameValue.inputType = 'name'
+      new_uiNameValue.char = thisChar
+      new_uiNameValue.onchange = OnEnterTurnOffManualInput
+      new_uiNameValue.onkeypress = OnEnterTurnOffManualInput
+      uiNameValue.onclick = undefined
+      uiNameValue.parentElement.replaceChild(new_uiNameValue, uiNameValue)
+      uiNameValue = new_uiNameValue
+      uiNameValue.focus()
+    } else if (typeof thisChar.nameManualInput == 'undefined' && uiNameValue.tagName == 'INPUT') {
+      var new_uiNameValue = document.createElement('span')
+      new_uiNameValue.inputType = 'name'
+      new_uiNameValue.char = thisChar
+      new_uiNameValue.onclick = ToggleInput
+      uiNameValue.onclick = undefined
+      uiNameValue.onchange = undefined
+      uiNameValue.onkeypress = undefined
+      uiNameValue.parentElement.replaceChild(new_uiNameValue, uiNameValue)
+      uiNameValue = new_uiNameValue
+      uiNameValue.focus()
+    }
+    if (thisChar.hitPointsManualInput == true && uiHitPointsValue.tagName != 'INPUT') {
+      var new_uiHitPointsValue = document.createElement('input')
+      new_uiHitPointsValue.type = 'number'
+      new_uiHitPointsValue.min = -50
+      new_uiHitPointsValue.max = 99999
+      new_uiHitPointsValue.classList.add('hitPointsValue')
+      new_uiHitPointsValue.inputType = 'hitPoints'
+      new_uiHitPointsValue.char = thisChar
+      new_uiHitPointsValue.onchange = OnEnterTurnOffManualInput
+      new_uiHitPointsValue.onkeypress = OnEnterTurnOffManualInput
+      uiHitPointsValue.onclick = undefined
+      uiHitPointsValue.parentElement.replaceChild(new_uiHitPointsValue, uiHitPointsValue)
+      uiHitPointsValue = new_uiHitPointsValue
+      uiHitPointsValue.focus()
+    } else if (typeof thisChar.hitPointsManualInput == 'undefined' && uiHitPointsValue.tagName == 'INPUT') {
+      var new_uiHitPointsValue = document.createElement('span')
+      new_uiHitPointsValue.inputType = 'hitPoints'
+      new_uiHitPointsValue.char = thisChar
+      new_uiHitPointsValue.onclick = ToggleInput
+      uiHitPointsValue.onclick = undefined
+      uiHitPointsValue.onchange = undefined
+      uiHitPointsValue.onkeypress = undefined
+      uiHitPointsValue.parentElement.replaceChild(new_uiHitPointsValue, uiHitPointsValue)
+      uiHitPointsValue = new_uiHitPointsValue
+      uiHitPointsValue.focus()
+    }
+
+    // update actual display values
+    uiRowChar.style.backgroundColor = thisChar.backgroundColor
+    if (uiInitiativeValue.tagName == 'INPUT') {
+      uiInitiativeValue.value = thisChar.initiative
+    } else if (thisChar.initiative === null) {
+      uiInitiativeValue.innerText = 'roll'
+    } else {
+      uiInitiativeValue.innerText = thisChar.initiative
+    }
+
+    if (uiNameValue.tagName == 'INPUT') {
+      uiNameValue.value = thisChar.name
+    } else {
+      uiNameValue.innerText = thisChar.name
+    }
+
+    if (uiHitPointsValue.tagName == 'INPUT') {
+      if (uiHitPointsValue.value != thisChar.hitPoints) {
+        uiHitPointsValue.value = thisChar.hitPoints
+      }
+    } else {
+      if (uiHitPointsValue.innerText != thisChar.hitPoints) {
+        uiHitPointsValue.innerText = thisChar.hitPoints
+        uiRowChar.classList.remove('hitPointsZero')
+        uiRowChar.classList.remove('hitPointsNegative')
+        if (thisChar.hitPoints == 0) {
+          uiRowChar.classList.add('hitPointsZero')
+        }
+        if (thisChar.hitPoints < 0) {
+          uiRowChar.classList.add('hitPointsNegative')
+        }
+      }
+    }
+  }
+  SortByInitiative();
+
+  var uiStorageCount = $('uiStorageCount')
+  if (StorageSupported()) {
+    uiStorageCount.innerText = localStorage.length - 1
+  } else {
+    uiStorageCount.innerText = 'N/A'
+  }
+  RedrawStorage()
+}
+var RedrawStorage = function() {
+  var storedChars = new Array()
+  var length = localStorage.length;
+  for (var i = 0; i < length; i++ ) {
+    var charName = localStorage.key(i);
+    var charValues = localStorage.getItem(charName)
+    if (charValues != null && charValues.substring(0,5)=='type:') {
+      var restoredChar = Char.FromValues(charValues)
+      storedChars.push(restoredChar)
+    }
+  }
+  var uiStoredCharacters = $('uiStoredCharacters')
+  for(var j = 1; j < uiStoredCharacters.children.length; j+=0) {
+    uiRowChar = uiStoredCharacters.children[j]
+    uiRowChar.parentElement.removeChild(uiRowChar)
+  }
+  for(var i = 0; i < storedChars.length; i++) {
+    var thisChar = storedChars[i]
+    var uiRowChar = document.createElement('tr')
+    uiRowChar.char = thisChar
+    uiRowChar.classList.add(thisChar.type)
+
+    var uiDeleteStoredCharacter = document.createElement('td')
+    uiDeleteStoredCharacter.classList.add('delete')
+    uiDeleteStoredCharacter.char = thisChar
+    uiDeleteStoredCharacter.onclick = DeleteCharacter
+    uiDeleteStoredCharacter.innerText = 'delete'
+    uiRowChar.appendChild(uiDeleteStoredCharacter)
+
+    var uiCellCharacter = document.createElement('td')
+    uiCellCharacter.innerText = thisChar.name + ' (init=' + thisChar.initiative + ', ' + thisChar.hitPoints + ' hit points)'
+    uiRowChar.appendChild(uiCellCharacter)
+
+    var uiCellActivate = document.createElement('td')
+    uiCellActivate.classList.add('add')
+    var uiAddCharacterAction = document.createElement('span')
+    uiAddCharacterAction.char = thisChar
+    uiAddCharacterAction.onclick = ActivateCharacter
+    uiAddCharacterAction.innerText = 'add'
+    uiCellActivate.appendChild(uiAddCharacterAction)
+    uiRowChar.appendChild(uiCellActivate)
+
+    uiStoredCharacters.appendChild(uiRowChar)
+  }
+}
+var FixName = function(name, thisChar) {
+  if (typeof name == 'undefined') {name = 'character 1'}
+  var foundDuplicate = false
+  for(var i = 0; i < activeChars.length; i++) {
+    var existingChar = activeChars[i]
+    if (existingChar !== thisChar && name == existingChar.name) {
+      foundDuplicate = true
+    }
+  }
+  if (foundDuplicate) {
+    // increment by 1, and call recursively
+    // first, find existing numeric suffix, and replace it with 1 more than the value (default to 1)
+    var nameBackwards = name.split('').reverse().join('')
+    var numericSuffixBackwards = nameBackwards.match('[0-9]*')[0]
+    // if no numeric suffix, default to zero (so increment will set to 1)
+    if (numericSuffixBackwards == '') {numericSuffixBackwards = '0'}
+    var numericSuffix = numericSuffixBackwards.split('').reverse().join('')
+    nameBackwards = nameBackwards.substring(numericSuffix.length)
+    name = nameBackwards.split('').reverse().join('') + (parseInt(numericSuffix) + 1).toString()
+    return FixName(name)
+  }
+  return name
+}
+
+var Char = function(type, name, initiative, hitPoints) {
+  if (typeof type != 'string') {
+    type = 'character'
+  } else if (type != 'player' & type != 'npc' & type != 'monster' & type != 'character') {
+    type = 'character'
+  }
+  if (typeof name != 'string') {
+    name = type + ' 1'
+  }
+  this.type = type
+  this.name = FixName(name)
+  if (typeof initiative == 'number') {
+    this.initiative = initiative
+  } else if (initiative === null) {
+    this.initiative = null
+  }
+  if (typeof hitPoints == 'number') {
+    this.hitPoints = hitPoints
+  }
+}
+Char.prototype.initiative = 11
+Char.prototype.hitPoints = 20
+Char.prototype.AddClone = function() {
+  var clone = Char.FromValues(this.toString())
+  clone.name = FixName(clone.name, clone)
+  activeChars.push(clone)
+  RedrawChars()
+}
+Char.prototype.Store = function() {
+  localStorage.setItem(this.name,this.toString());
+}
+Char.prototype.SetInactive = function() {
+  var i = activeChars.indexOf(this)
+  activeChars.splice(i, 1)
+  this.Store()
+
+  var uiActiveCharacters = $('uiActiveCharacters')
+  for(var j = 0; j < uiActiveCharacters.children.length; j++) {
+    if (uiActiveCharacters.children[j].char == this) {
+      uiRowChar = uiActiveCharacters.children[j]
+      uiRowChar.parentElement.removeChild(uiRowChar)
+    }
+  }
+  RedrawChars()
+}
+Char.prototype.toString = function(){
+  return 'type:'+this.type
+       +',name:'+this.name.replace(',','{comma}')
+       +',initiative:'+this.initiative
+       +',hitPoints:'+this.hitPoints
+}
+Char.FromValues = function(values) {
+  var thisChar = new Char()
+  var nameValuePairs = values.split(',')
+  for (var i = 0; i < nameValuePairs.length; i++) {
+    var nameValuePair = nameValuePairs[i]
+    var j = nameValuePair.indexOf(':')
+    var parmName = nameValuePair.substring(0,j)
+    var value = nameValuePair.substring(j+1).replace('{comma}',',')
+    var numberValue = Number.parseFloat(value)
+    if (isNaN(numberValue)) {
+      thisChar[parmName] = value
+    } else {
+      thisChar[parmName] = numberValue
+    }
+  }
+  if (thisChar.initiative == 'null') {
+     thisChar.initiative = null
+  }
+  return thisChar
+}
+
+var GetCharActiveTurn = function() {
+  var uiActiveCharacters = $('uiActiveCharacters')
+  var indexOfActiveCharacter = 0
+  for(var i = 1; i < uiActiveCharacters.children.length; i++) {
+    var uiRowChar = uiActiveCharacters.children[i]
+    if (uiRowChar.classList.contains('activeTurn')) {
+      return uiRowChar.char
+    }
+  }
+  return null
+}
+
+var NextCharacter = function() {
+  if (initiativeRound == null) {initiativeRound = 1}
+  TurnOffManualInput()
+  var uiActiveCharacters = $('uiActiveCharacters')
+  var indexOfActiveCharacter = 0
+  for(var i = 1; i < uiActiveCharacters.children.length; i++) {
+    var uiRowChar = uiActiveCharacters.children[i]
+    if (uiRowChar.classList.contains('activeTurn')) {
+      indexOfActiveCharacter = i
+      uiRowChar.classList.remove('activeTurn')
+    }
+  }
+  indexOfActiveCharacter += 1
+  if (indexOfActiveCharacter >= uiActiveCharacters.children.length) {
+    initiativeRound += 1
+    indexOfActiveCharacter = 1
+  }
+  uiActiveCharacters.children[indexOfActiveCharacter].classList.add('activeTurn')
+  RedrawChars()
+}
+var PrevCharacter = function() {
+  if (initiativeRound == null) {initiativeRound = 1}
+  TurnOffManualInput()
+  var uiActiveCharacters = $('uiActiveCharacters')
+  var indexOfActiveCharacter = 0
+  for(var i = 1; i < uiActiveCharacters.children.length; i++) {
+    var uiRowChar = uiActiveCharacters.children[i]
+    if (uiRowChar.classList.contains('activeTurn')) {
+      indexOfActiveCharacter = i
+      uiRowChar.classList.remove('activeTurn')
+    }
+  }
+  indexOfActiveCharacter -= 1
+  if (indexOfActiveCharacter <= 0) {
+    initiativeRound -= 1
+    indexOfActiveCharacter = uiActiveCharacters.children.length - 1
+  }
+  uiActiveCharacters.children[indexOfActiveCharacter].classList.add('activeTurn')
+  RedrawChars()
+}
+
+var AddPlayer = function() {
+  TurnOffManualInput()
+  var newChar = new Char('player', undefined, null, undefined)
+  newChar.nameManualInput = true
+  activeChars.push(newChar)
+  RedrawChars()
+}
+var AddNPC = function() {
+  TurnOffManualInput()
+  var newChar = new Char('npc', undefined, null, undefined)
+  newChar.nameManualInput = true
+  activeChars.push(newChar)
+  RedrawChars()
+}
+var AddMonster = function() {
+  TurnOffManualInput()
+  var newChar = new Char('monster', undefined, null, undefined)
+  activeChars.push(newChar)
+  RedrawChars()
+}
+var ToggleStorage = function() {
+  if (!StorageSupported()) {
+    uiShowHideStorage.innerText = 'not supported due to no local storage'
+    return
+  }
+  var uiStoredCharacters = $('uiStoredCharacters')
+  var uiShowHideStorage = $('uiShowHideStorage')
+  if (uiShowHideStorage.innerText == 'show') {
+    uiStoredCharacters.style.display = null
+    uiShowHideStorage.innerText = 'hide'
+  } else {
+    uiStoredCharacters.style.display = 'none'
+    uiShowHideStorage.innerText = 'show'
+  }
+  RedrawStorage()
+  TurnOffManualInput()
+}
+
+$('uiNextCharacter').onclick = NextCharacter
+$('uiPrevCharacter').onclick = PrevCharacter
+$('uiAddPC').onclick = AddPlayer
+$('uiAddNPC').onclick = AddNPC
+$('uiAddMonster').onclick = AddMonster
+$('uiToggleStorage').onclick = ToggleStorage
+
+var activeChars
+var backupTimer
+var initiativeRound = 0
+
+var Initialize = function() {
+  activeChars = new Array()
+  LoadFromStorage()
+  ToggleStorage()
+  if (activeChars.length == 0) {
+    activeChars.push(new Char('player'))
+    activeChars.push(new Char('monster'))
+    activeChars.push(new Char('npc'))
+  }
+  RedrawChars()
+  NextCharacter()
+}
+Initialize();
+
+// TODO: add some kind of round counter-increment
+// TODO: add full history of values, in a log
+// TODO: add "export" and "import" of characters & history to a file
+// TODO: default initiative to NULL, with a ROLL button
+// TODO: drawing storage chars, if in "active" list, should:
+//         show "clone" instead of "add"
+//         show "(active)", not "delete"
+// TODO: fix menu - replace with "?", and clicking should pop-up an "about" style box
+
+</script>
